@@ -1,4 +1,4 @@
-```markdown
+
 # QuickLance (Backend)
 
 This is the backend server for the **QuickLance** freelance platform. It handles all service-related APIs, database operations, and CORS/auth middlewares.
