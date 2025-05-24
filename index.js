@@ -40,6 +40,7 @@ async function run() {
       res.send(result)
     })
     
+
     app.get('/allTasks/:id', async (req, res) => {
       const id = req.params.id;
       try {
@@ -123,10 +124,7 @@ async function run() {
         res.status(500).send({ message: 'Update failed', error });
       }
     });
-
-
-    //
-
+    
     app.delete('/allTasks/:id', async (req, res) => {
       const id = req.params.id;
       const result = await tasksCollection.deleteOne({ _id: new ObjectId(id) });
