@@ -66,8 +66,6 @@ async function run() {
       res.send(result);
     });
 
-  
-
     app.post('/bids', async (req, res) => {
       const bid = req.body;
 
@@ -79,7 +77,7 @@ async function run() {
       if (existingBid) {
         return res
           .status(400)
-          .send({ message: 'You already bid on this task.' });
+          .send({ message: 'You have already bid on this task.' });
       }
 
       const result = await bidsCollection.insertOne(bid);
