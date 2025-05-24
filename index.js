@@ -53,7 +53,6 @@ async function run() {
       }
     });
     
-    
     app.get('/postedTasks', async (req, res) => {
       const email = req.query.email;
 
@@ -66,6 +65,7 @@ async function run() {
       const result = await cursor.toArray();
       res.send(result);
     });
+
 
     app.post('/bids', async (req, res) => {
       const bid = req.body;
@@ -99,7 +99,7 @@ async function run() {
       res.send(result)
     })
     
-    //update
+    //update task
     
     app.patch('/allTasks/:id', async (req, res) => {
       const id = req.params.id;
