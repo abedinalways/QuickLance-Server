@@ -1,18 +1,29 @@
 const express = require('express');
 const cors = require('cors');
+const verifyToken = require('./verifyToken');
+const allowedOrigins = ['https://quicklance-e9af0.web.app'];
 require('dotenv').config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express();
 const port = process.env.PORT || 3000;
 
+// CORS Middleware
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+  })
+);
 
-// Middleware
-app.use(cors());
 app.use(express.json());
 
-
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.4oy8t6b.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
-
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -24,22 +35,22 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    // await client.connect();
     const database = client.db('QuickLance');
     const tasksCollection = database.collection('tasks');
     const bidsCollection = database.collection('bids');
+
+  
     app.get('/tasks', async (req, res) => {
       const cursor = tasksCollection.find().sort({ deadline: 1 }).limit(6);
       const result = await cursor.toArray();
-      res.send(result)
-    })
-    
+      res.send(result);
+    });
+
     app.get('/allTasks', async (req, res) => {
       const cursor = tasksCollection.find().sort({ deadline: 1 });
       const result = await cursor.toArray();
-      res.send(result)
-    })
-    
+      res.send(result);
+    });
 
     app.get('/allTasks/:id', async (req, res) => {
       const id = req.params.id;
@@ -53,15 +64,11 @@ async function run() {
         res.status(500).send({ message: 'Error retrieving task', error });
       }
     });
-    
+
     app.get('/postedTasks', async (req, res) => {
       const email = req.query.email;
-
       let query = {};
-      if (email) {
-        query.email = email;
-      }
-
+      if (email) query.email = email;
       const cursor = tasksCollection.find(query).sort({ deadline: 1 });
       const result = await cursor.toArray();
       res.send(result);
@@ -69,7 +76,6 @@ async function run() {
 
     app.post('/bids', async (req, res) => {
       const bid = req.body;
-
       const existingBid = await bidsCollection.findOne({
         taskId: bid.taskId,
         userEmail: bid.userEmail,
@@ -85,27 +91,21 @@ async function run() {
       res.send(result);
     });
 
-
     app.get('/bids', async (req, res) => {
       const taskId = req.query.taskId;
       const result = await bidsCollection.find({ taskId }).toArray();
       res.send(result);
     });
-    //
-    app.post('/tasks', async(req, res) => {
+
+    app.post('/tasks', async (req, res) => {
       const newTask = req.body;
-      console.log(newTask);
       const result = await tasksCollection.insertOne(newTask);
-      res.send(result)
-    })
-    
-    //update task
-    
+      res.send(result);
+    });
 
     app.patch('/allTasks/:id', async (req, res) => {
       const id = req.params.id;
       const updatedTask = req.body;
-
       const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
@@ -124,28 +124,20 @@ async function run() {
         res.status(500).send({ message: 'Update failed', error });
       }
     });
-    
+
     app.delete('/allTasks/:id', async (req, res) => {
       const id = req.params.id;
       const result = await tasksCollection.deleteOne({ _id: new ObjectId(id) });
       res.send(result);
     });
-
-    // await client.db('admin').command({ ping: 1 });
-    // console.log(
-    //   'Pinged your deployment. You successfully connected to MongoDB!'
-    // );
   } finally {
-
-    // await client.close();
+    
   }
 }
 run().catch(console.dir);
 
-
-
 app.get('/', (req, res) => {
-  res.send('QuickLance QuickLAnce!');
+  res.send('QuickLance backend is running!');
 });
 
 app.listen(port, () => {
