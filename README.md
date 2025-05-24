@@ -1,6 +1,3 @@
-
-### ✅ `backend/README.md`
-
 ```markdown
 # QuickLance (Backend)
 
