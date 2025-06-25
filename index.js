@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const verifyToken = require('./verifyToken');
-const allowedOrigins = ['https://quicklance-e9af0.web.app'];
+const allowedOrigins = ['http://localhost:5174'];
 require('dotenv').config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express();
