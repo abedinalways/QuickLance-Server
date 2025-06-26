@@ -64,7 +64,7 @@ async function run() {
     })
 
    //for counting user bids
-    app.get('/bids/count', verifyToken, async (req, res) => {
+    app.get('/bids/count',  async (req, res) => {
       const userEmail = req.query.email;
       if (!userEmail) {
         return res.status(400).send({message:'user email is required'})
@@ -90,7 +90,7 @@ async function run() {
       }
     });
 
-    app.get('/postedTasks', verifyToken, async (req, res) => {
+    app.get('/postedTasks', async (req, res) => {
       const email = req.query.email;
       let query = {};
       if (email) query.email = email;
@@ -99,7 +99,7 @@ async function run() {
       res.send(result);
     });
 
-    app.post('/bids',verifyToken, async (req, res) => {
+    app.post('/bids',  async (req, res) => {
       const bid = req.body;
       const existingBid = await bidsCollection.findOne({
         taskId: bid.taskId,
@@ -116,43 +116,48 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/bids', verifyToken, async (req, res) => {
-      const { taskId, userEmail } = req.query;
-      let matchStage = {};
-      if (taskId) matchStage.taskId = taskId;
-      if (userEmail) matchStage.userEmail = userEmail;
+    app.get('/bids',  async (req, res) => {
+  const { taskId, userEmail } = req.query;
+  let matchStage = {};
+  if (taskId) matchStage.taskId = taskId;
+  if (userEmail) matchStage.userEmail = userEmail;
 
-      try {
-        const result = await bidsCollection
-          .aggregate([
-            { $match: matchStage },
-            {
-              $lookup: {
-                from: 'tasks',
-                localField: 'taskId',
-                foreignField: '_id',
-                as: 'taskDetails',
-              },
-            },
-            { $unwind: '$taskDetails' },
-            {
-              $project: {
-                _id: 1,
-                taskId: 1,
-                userEmail: 1,
-                bidTime: 1,
-                task: '$taskDetails.task',
-                deadline: '$taskDetails.deadline',
-                budget: '$taskDetails.budget',
-              },
-            },
-          ])
-          .toArray();
-        res.send(result);
-      } catch (error) {
-        res.status(500).send({ message: 'Error retrieving bids', error });
-      }
-    });
+  console.log('Fetching bids with match:', matchStage);
+  try {
+    const result = await bidsCollection
+      .aggregate([
+        { $match: matchStage },
+        {
+          $lookup: {
+            from: 'tasks',
+            let: { taskId: { $toObjectId: '$taskId' } },
+            pipeline: [
+              { $match: { $expr: { $eq: ['$_id', '$$taskId'] } } }
+            ],
+            as: 'taskDetails',
+          },
+        },
+        { $unwind: '$taskDetails' },
+        {
+          $project: {
+            _id: 1,
+            taskId: 1,
+            userEmail: 1,
+            bidTime: 1,
+            task: '$taskDetails.task',
+            deadline: '$taskDetails.deadline',
+            budget: '$taskDetails.budget',
+          },
+        },
+      ])
+      .toArray();
+    console.log('Bids result:', result);
+    res.send(result);
+  } catch (error) {
+    console.error('Error retrieving bids:', error);
+    res.status(500).send({ message: 'Error retrieving bids', error });
+  }
+});
 
     app.post('/tasks', async (req, res) => {
       const newTask = req.body;
