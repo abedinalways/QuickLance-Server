@@ -1,11 +1,12 @@
 const express = require('express');
 const cors = require('cors');
 const verifyToken = require('./verifyToken');
-const allowedOrigins = ['http://localhost:5174'];
+const allowedOrigins = ['http://localhost:5173'];
 require('dotenv').config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express();
 const port = process.env.PORT || 3000;
+
 
 // CORS Middleware
 app.use(
@@ -20,6 +21,7 @@ app.use(
     credentials: true,
   })
 );
+
 
 app.use(express.json());
 
@@ -39,7 +41,7 @@ async function run() {
     const tasksCollection = database.collection('tasks');
     const bidsCollection = database.collection('bids');
 
-  
+    
     app.get('/tasks', async (req, res) => {
       const cursor = tasksCollection.find().sort({ deadline: 1 }).limit(6);
       const result = await cursor.toArray();
@@ -51,6 +53,29 @@ async function run() {
       const result = await cursor.toArray();
       res.send(result);
     });
+    //for counting tasks
+    app.get('/tasks/count', async (req, res) => {
+      try {
+        const count = await tasksCollection.countDocuments();
+        res.send({ count });
+      } catch (error) {
+        res.status(500).send({ message: 'Error retrieving task count', error });
+      }
+    })
+
+   //for counting user bids
+    app.get('/bids/count', verifyToken, async (req, res) => {
+      const userEmail = req.query.email;
+      if (!userEmail) {
+        return res.status(400).send({message:'user email is required'})
+      }
+      try {
+        const count = await bidsCollection.countDocuments({ userEmail });
+        res.send({ count });
+      } catch (error) {
+        res.status(500).send({ message: 'Error retrieving bid count', error });
+      }
+    })
 
     app.get('/allTasks/:id', async (req, res) => {
       const id = req.params.id;
@@ -65,7 +90,7 @@ async function run() {
       }
     });
 
-    app.get('/postedTasks', async (req, res) => {
+    app.get('/postedTasks', verifyToken, async (req, res) => {
       const email = req.query.email;
       let query = {};
       if (email) query.email = email;
@@ -74,7 +99,7 @@ async function run() {
       res.send(result);
     });
 
-    app.post('/bids', async (req, res) => {
+    app.post('/bids',verifyToken, async (req, res) => {
       const bid = req.body;
       const existingBid = await bidsCollection.findOne({
         taskId: bid.taskId,
@@ -91,10 +116,42 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/bids', async (req, res) => {
-      const taskId = req.query.taskId;
-      const result = await bidsCollection.find({ taskId }).toArray();
-      res.send(result);
+    app.get('/bids', verifyToken, async (req, res) => {
+      const { taskId, userEmail } = req.query;
+      let matchStage = {};
+      if (taskId) matchStage.taskId = taskId;
+      if (userEmail) matchStage.userEmail = userEmail;
+
+      try {
+        const result = await bidsCollection
+          .aggregate([
+            { $match: matchStage },
+            {
+              $lookup: {
+                from: 'tasks',
+                localField: 'taskId',
+                foreignField: '_id',
+                as: 'taskDetails',
+              },
+            },
+            { $unwind: '$taskDetails' },
+            {
+              $project: {
+                _id: 1,
+                taskId: 1,
+                userEmail: 1,
+                bidTime: 1,
+                task: '$taskDetails.task',
+                deadline: '$taskDetails.deadline',
+                budget: '$taskDetails.budget',
+              },
+            },
+          ])
+          .toArray();
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ message: 'Error retrieving bids', error });
+      }
     });
 
     app.post('/tasks', async (req, res) => {
